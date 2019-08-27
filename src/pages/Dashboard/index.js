@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, ActivityIndicator } from 'react-native';
+
 import { withNavigationFocus } from 'react-navigation';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import PropTypes from 'prop-types';
@@ -14,20 +15,50 @@ function Dashboard({ isFocused }) {
   const [date, setDate] = useState(new Date());
 
   const [meetups, setMeetup] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+
+  async function loadMoreMeetups(_page = 1) {
+    const response = await api.get('meetups', {
+      params: {
+        date,
+        page: _page,
+      },
+    });
+    setMeetup(_page >= 2 ? [...meetups, ...response.data] : response.data);
+    setPage(_page);
+    setLoading(false);
+    setRefreshing(false);
+  }
 
   useEffect(() => {
-    async function loadMeetup() {
+    async function loadMeetups(_page = 1) {
       const response = await api.get('meetups', {
         params: {
           date,
+          _page,
         },
       });
       setMeetup(response.data);
     }
+
     if (isFocused) {
-      loadMeetup();
+      loadMeetups();
     }
-  }, [isFocused, date]);
+  }, [date, isFocused]);
+
+  function loadMore() {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadMoreMeetups(nextPage);
+  }
+
+  function refreshList() {
+    setRefreshing(true);
+    setMeetup([]);
+    loadMoreMeetups();
+  }
 
   async function handleSubscribe(id) {
     try {
@@ -52,13 +83,25 @@ function Dashboard({ isFocused }) {
       <Container>
         <Title> Meetups</Title>
         <DateInput date={date} onChange={setDate} />
-        <List
-          data={meetups}
-          keyExtractor={item => String(item.id)}
-          renderItem={({ item }) => (
-            <Meetup onSubscribe={() => handleSubscribe(item.id)} data={item} />
-          )}
-        />
+        {loading ? (
+          <ActivityIndicator color="#7159c1" />
+        ) : (
+          <List
+            onRefresh={refreshList} // function triggered when user slide the list down
+            refreshing={refreshing} // variable state true/false for check if list is updating
+            onEndReachedThreshold={0.01} // function to load when reach 1% of items limit
+            onEndReached={loadMore} // function to load more items
+            loading={loading}
+            data={meetups}
+            keyExtractor={item => String(item.id)}
+            renderItem={({ item }) => (
+              <Meetup
+                onSubscribe={() => handleSubscribe(item.id)}
+                data={item}
+              />
+            )}
+          />
+        )}
       </Container>
     </Background>
   );

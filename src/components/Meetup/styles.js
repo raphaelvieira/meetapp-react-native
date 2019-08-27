@@ -9,7 +9,7 @@ export const Container = styled.View`
   display: flex;
   flex-direction: column;
   align-items: center;
-
+  padding-bottom: 20px;
   opacity: ${props => (props.past ? 0.6 : 1)};
 `;
 
